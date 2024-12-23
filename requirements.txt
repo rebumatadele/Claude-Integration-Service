@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+httpx
+loguru
+sqlalchemy
+aiosqlite
+pydantic
+pydantic-settings
