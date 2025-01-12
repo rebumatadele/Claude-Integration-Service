@@ -84,12 +84,15 @@ async def check_and_dispatch_callbacks():
         completed_jobs = result.scalars().all()
 
         for job in completed_jobs:
-            # Dispatch callback asynchronously
-            asyncio.create_task(callback_dispatcher_instance.dispatch_callback(job.id))
+            # 1) Actually do the callback first
+            await callback_dispatcher_instance.dispatch_callback(job.id)
 
-            # Mark the job as CALLBACK_DISPATCHED to prevent re-dispatching
+            # 2) Then mark the job as CALLBACK_DISPATCHED
             job.status = JobStatus.CALLBACK_DISPATCHED
+        
+        # 3) Commit after callbacks have completed
         await session.commit()
+
 
 # Event handler to initialize the database and load settings
 @app.on_event("startup")
