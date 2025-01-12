@@ -40,7 +40,7 @@ class Settings(BaseModel):
 
 settings = Settings(
     callback=CallbackConfig(
-        allowed_domains=[domain.strip() for domain in os.getenv("ALLOWED_CALLBACK_DOMAINS", "").split(",") if domain.strip()],
+        allowed_domains=[domain.strip() for domain in os.getenv("ALLOWED_CALLBACK_DOMAINS", "*").split(",") if domain.strip()],
         auth_token=os.getenv("CALLBACK_AUTH_TOKEN")
     )
 )

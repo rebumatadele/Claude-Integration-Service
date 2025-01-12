@@ -1,4 +1,3 @@
-#utils/callback_dispatcher
 import httpx
 from urllib.parse import urlparse
 from loguru import logger
@@ -29,9 +28,12 @@ class CallbackDispatcher:
             # Validate the callback URL's domain
             parsed_url = urlparse(job.callback_url)
             domain = parsed_url.netloc
-            if domain not in self.allowed_domains:
-                logger.error(f"Callback URL domain '{domain}' is not in the allowed list.")
-                return
+
+            # NEW: If '*' is in allowed domains, skip checks
+            if "*" not in self.allowed_domains:
+                if domain not in self.allowed_domains:
+                    logger.error(f"Callback URL domain '{domain}' is not in the allowed list.")
+                    return
 
             # Get the final aggregated result
             final_result = await response_aggregator_instance.get_final_result(job_id)
@@ -51,21 +53,30 @@ class CallbackDispatcher:
             # Attempt to send the callback with retries
             for attempt in range(1, self.retry_limit + 1):
                 try:
+                    logger.info(f"Attempting callback to {job.callback_url} with payload: {payload}")
                     async with httpx.AsyncClient() as client:
                         response = await client.post(job.callback_url, json=payload, timeout=10)
+                        logger.info(f"Callback response code: {response.status_code}, body: {response.text}")
+
                         if response.status_code in [200, 201, 202]:
                             logger.info(f"Successfully dispatched callback for job {job_id} to {job.callback_url}")
                             return
                         else:
-                            logger.error(f"Callback dispatch failed for job {job_id} with status {response.status_code}: {response.text}")
+                            logger.error(
+                                f"Callback dispatch failed for job {job_id} with status {response.status_code}: {response.text}"
+                            )
                 except httpx.RequestError as e:
                     logger.error(f"Request error during callback dispatch for job {job_id}: {e}")
 
                 if attempt < self.retry_limit:
-                    logger.info(f"Retrying callback dispatch for job {job_id} in {self.retry_delay} seconds (Attempt {attempt}/{self.retry_limit})")
+                    logger.info(
+                        f"Retrying callback dispatch for job {job_id} in {self.retry_delay} seconds "
+                        f"(Attempt {attempt}/{self.retry_limit})"
+                    )
                     await asyncio.sleep(self.retry_delay)
 
             logger.error(f"Failed to dispatch callback for job {job_id} after {self.retry_limit} attempts.")
+
 
 # Instantiate a global CallbackDispatcher
 callback_dispatcher_instance = CallbackDispatcher()
